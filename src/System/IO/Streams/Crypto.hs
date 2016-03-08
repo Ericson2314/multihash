@@ -1,7 +1,7 @@
 module System.IO.Streams.Crypto where
 
 import           Control.Exception     (bracket)
-import           Crypto.Hash           (Digest, HashAlgorithm (..))
+import           Crypto.Hash
 import           Data.ByteString       (ByteString)
 import           Data.Multihash.Digest (decoder)
 import           System.IO.Streams     (InputStream, fold, inputFoldM)

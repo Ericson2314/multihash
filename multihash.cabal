@@ -37,7 +37,7 @@ library
                , base58-bytestring >= 0.1  && < 0.2
                , base64-bytestring >= 1.0  && < 1.1
                , bytestring        >= 0.10 && < 0.11
-               , cryptohash        >= 0.11 && < 0.12
+               , cryptonite        >= 0.10
                , hex               >= 0.1  && < 0.2
                , io-streams        >= 1.2  && < 1.4
 
@@ -55,7 +55,7 @@ executable multihash
                , base58-bytestring    >= 0.1  && < 0.2
                , byteable             >= 0.1  && < 0.2
                , bytestring           >= 0.10 && < 0.11
-               , cryptohash           >= 0.11 && < 0.12
+               , cryptonite           >= 0.10
                , hex                  >= 0.1  && < 0.2
                , io-streams           >= 1.2  && < 1.4
                , multihash            >= 0.1  && < 0.2
