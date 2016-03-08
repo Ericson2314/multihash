@@ -1,9 +1,12 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ExistentialQuantification #-}
+
+{-# LANGUAGE UndecidableInstances #-}
 
 module Data.Multihash.Digest where
 
@@ -25,38 +28,41 @@ import           Data.Word                  (Word8)
 import           GHC.TypeLits
 
 -- TODO: Make injective
-class (Show h, HashAlgorithm h) => MultihashAlgorithm h where
+class (Show h
+      , HashAlgorithm h
+      , KnownNat (Tag h))
+      => MultihashAlgorithm h where
   type Tag h :: Nat
-  type Len h :: Nat
 
 instance MultihashAlgorithm SHA1 where
   type Tag SHA1 = 0x11
-  type Len SHA1 = 20
 
 instance MultihashAlgorithm SHA256 where
   type Tag SHA256 = 0x12
-  type Len SHA256 = 32
 
 instance MultihashAlgorithm SHA512 where
   type Tag SHA512 = 0x13
-  type Len SHA512 = 64
 
 instance MultihashAlgorithm SHA3_512 where
   type Tag SHA3_512 = 0x14
-  type Len SHA3_512 = 64
 
 instance MultihashAlgorithm SHA3_384 where
   type Tag SHA3_384 = 0x16
-  type Len SHA3_384 = 48
 
 instance MultihashAlgorithm SHA3_256 where
   type Tag SHA3_256 = 0x16
-  type Len SHA3_256 = 32
 
 instance MultihashAlgorithm SHA3_224 where
   type Tag SHA3_224 = 0x17
-  type Len SHA3_224 = 28
 
+class ( KnownNat n
+      , MultihashAlgorithm (Alg n)
+      , Tag (Alg n) ~ n)
+      => Inverse (n :: Nat) where
+  type Alg n :: *
+
+--instance (n ~ (Tag h), MultihashAlgorithm h) => Inverse n where
+--  type Alg n = h
 
 data RawDigest = RawDigest
     { algorithm :: !Word8
@@ -81,7 +87,12 @@ encoder :: (KnownNat (Tag h), MultihashAlgorithm h) => CH.Digest h -> Builder
 encoder = encoderRaw . encodeTag
 
 decoder :: Parser (Digest)
-decoder = decodeTag <$> decoderRaw
+decoder = do
+  r <- decodeTag <$> decoderRaw
+  case r of
+    Just x  -> return x
+    Nothing -> fail "multihash: invalid tag or len"
+
 
 encodeTag :: forall h. (KnownNat (Tag h), MultihashAlgorithm h) => CH.Digest h -> RawDigest
 encodeTag d = RawDigest
@@ -89,8 +100,12 @@ encodeTag d = RawDigest
   (fromIntegral $ hashDigestSize (undefined :: h))
   (BS.pack $ _ $ show d)
 
-decodeTag :: RawDigest -> Digest
-decodeTag = _
+decodeTag :: RawDigest -> Maybe Digest
+decodeTag d = do
+case someNatVal $ fromIntegral $ algorithm d of
+  Just (SomeNat n) -> Digest <$> f n
+  where f :: KnownNat n => Proxy n -> Maybe (CH.Digest (Alg n))
+        f _ = _
 
 encoderRaw :: RawDigest -> Builder
 encoderRaw d =  BB.word8 (algorithm d)
