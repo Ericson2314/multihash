@@ -40,6 +40,7 @@ library
                , cryptonite        >= 0.10
                , hex               >= 0.1  && < 0.2
                , io-streams        >= 1.2  && < 1.4
+               , memory
 
 
 executable multihash

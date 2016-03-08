@@ -12,10 +12,10 @@ module Data.Multihash.Digest where
 
 import           Prelude                    hiding (length)
 
-import           Control.Applicative        ((<$>))
 import qualified Crypto.Hash                as CH
 import           Crypto.Hash                hiding (Digest)
 import           Data.Attoparsec.ByteString (Parser, parseOnly)
+import           Data.ByteArray             (convert)
 import qualified Data.Attoparsec.ByteString as A
 import qualified Data.ByteString            as BS
 import           Data.ByteString.Builder    (Builder, byteString,
@@ -78,7 +78,7 @@ instance Show Digest where
 
 
 tag :: forall h proxy. (KnownNat (Tag h), MultihashAlgorithm h) => proxy h -> Word8
-tag d = fromIntegral $ natVal (Proxy :: Proxy (Tag h))
+tag _ = fromIntegral $ natVal (Proxy :: Proxy (Tag h))
 
 
 encode :: (KnownNat (Tag h), MultihashAlgorithm h) => CH.Digest h -> BL.ByteString
@@ -102,12 +102,12 @@ encodeTag :: forall h. (KnownNat (Tag h), MultihashAlgorithm h) => CH.Digest h -
 encodeTag d = RawDigest
   (tag d)
   (fromIntegral $ hashDigestSize (undefined :: h))
-  (BS.pack $ _ $ show d)
+  (convert d)
 
 decodeTag :: RawDigest -> Maybe Digest
 decodeTag d = do
-case someNatVal $ fromIntegral $ algorithm d of
-  Just (SomeNat n) -> Digest <$> f n
+  SomeNat n <- someNatVal $ fromIntegral $ algorithm d
+  Digest <$> f n
   where f :: KnownNat n => Proxy n -> Maybe (CH.Digest (Alg n))
         f _ = _
 

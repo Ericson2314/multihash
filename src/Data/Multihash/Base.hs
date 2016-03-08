@@ -4,7 +4,6 @@ module Data.Multihash.Base where
 import qualified Data.ByteString.Base58      as B58
 import qualified Data.ByteString.Base64.Lazy as B64
 import           Data.ByteString.Lazy        (ByteString, fromStrict, toStrict)
-import           Data.Either                 (Either)
 import qualified Data.Hex                    as B16
 
 
