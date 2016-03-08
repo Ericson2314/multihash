@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ExistentialQuantification #-}
 
 module Main where
 
@@ -17,13 +18,18 @@ import qualified Data.Multihash.Base      as MB
 import qualified Data.Multihash.Digest    as MH
 
 
+data SomeAlgo = forall h. MH.MultihashAlgorithm h => SomeAlgo h
+
+instance Show SomeAlgo where
+  show (SomeAlgo h) = show h
+
 data Termination = Null | Newline deriving (Show, Eq)
 data Config =
     Config
     { cfFile :: Maybe FilePath
-    , cfAlgo :: MH.HashAlgorithm
+    , cfAlgo :: SomeAlgo
     , cfBase :: MB.BaseEncoding
-    , cfHash :: Maybe MH.Digest
+    , cfDigest :: Maybe String
     , cfTerm :: Termination
     } deriving Show
 
@@ -37,22 +43,19 @@ main = do
   where
     hashStdin config = hash (cfAlgo config) stdin
     hashFile config file = withFileAsInput file . hash $ cfAlgo config
-    multihash (Config _file algo base _hash term) =
-        Just . toStrict . line term . MB.encode base . MH.encode algo
+    multihash (Config _file algo base _hash term) (MH.Digest d) =
+      Just $ toStrict $ line term $ MB.encode base $ MH.encode d
 
     line Null    = (<> "\0")
     line Newline = (<> "\n")
 
 
 -- TODO add BLAKE support
-hash :: MH.HashAlgorithm -> InputStream ByteString -> IO MH.Digest
-hash MH.SHA1 is   = toBytes <$> (hashInputStream is :: IO (Digest CH.SHA1))
-hash MH.SHA256 is = toBytes <$> (hashInputStream is :: IO (Digest CH.SHA256))
-hash MH.SHA512 is = toBytes <$> (hashInputStream is :: IO (Digest CH.SHA512))
-hash MH.SHA3 is   = toBytes <$> (hashInputStream is :: IO (Digest CH.SHA3_256))
-hash MH.BLAKE2B _ = undefined
-hash MH.BLAKE2S _ = undefined
-
+hash :: SomeAlgo -> InputStream ByteString -> IO MH.Digest
+hash (SomeAlgo algo) is = MH.Digest <$> f algo
+  where
+    f :: MH.MultihashAlgorithm h => h -> IO (Digest h)
+    f _ = hashInputStream is
 
 opts :: ParserInfo Config
 opts = info
@@ -68,14 +71,16 @@ opts = info
         <> progDesc "Hash from FILE or stdin if not given.")
 
 
-algoOpt :: Parser MH.HashAlgorithm
+algoOpt :: Parser SomeAlgo
 algoOpt =
     option auto
     $  long "algorithm"
     <> short 'a'
     <> metavar "ALGO"
-    <> showDefault <> value MH.SHA256
-    <> help ("Hash algorithm to apply to input, ignored if checking hash " <> show ([minBound..] :: [MH.HashAlgorithm]))
+    <> showDefault <> value (SomeAlgo CH.SHA256)
+    <> help ("Hash algorithm to apply to input, ignored if checking hash " <> show
+             [ SomeAlgo $ CH.SHA256
+             ])
 
 
 baseOpt :: Parser MB.BaseEncoding
@@ -88,7 +93,7 @@ baseOpt =
     <> help ("Base encoding of output digest, ignored if checking hash " <> show ([minBound..] :: [MB.BaseEncoding]))
 
 
-checkOpt :: Parser (Maybe MH.Digest)
+checkOpt :: Parser (Maybe String)
 checkOpt =
     optional . option auto
     $  long "check"

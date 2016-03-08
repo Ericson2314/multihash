@@ -73,6 +73,10 @@ data RawDigest = RawDigest
 
 data Digest = forall h. (KnownNat (Tag h), MultihashAlgorithm h) => Digest (CH.Digest h)
 
+instance Show Digest where
+  show (Digest d) = show d
+
+
 tag :: forall h proxy. (KnownNat (Tag h), MultihashAlgorithm h) => proxy h -> Word8
 tag d = fromIntegral $ natVal (Proxy :: Proxy (Tag h))
 
